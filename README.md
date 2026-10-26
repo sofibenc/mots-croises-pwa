@@ -15,18 +15,29 @@ Tout tourne sur le téléphone, hors ligne une fois l'appli installée. Aucune d
 | `vendor/`, `core/`, `lang/` | Moteur OCR Tesseract.js 5.1.1 et modèle français (LSTM, `best_int`) |
 | `tools/test-recognize.js` | Test de la reconnaissance sous Node, sur une capture |
 
-## Déployer sur GitHub Pages
+## Déployer sur Firebase Hosting
+
+Même principe que voisinage-v2, sans étape de build : Firebase publie le dossier tel quel.
+
+Une seule fois :
+
+1. Crée un projet sur la console Firebase (Hosting suffit, ni Firestore ni Functions).
+2. Mets son identifiant dans `.firebaserc` à la place de `carnet-de-grilles` si tu en as choisi un autre.
+3. Installe et connecte la CLI si ce n'est pas déjà fait :
+   ```bash
+   npm install -g firebase-tools
+   firebase login
+   ```
+
+Ensuite, à chaque mise en ligne :
 
 ```bash
-cd mots-croises-pwa
-git remote add origin git@github.com:<ton-compte>/mots-croises-pwa.git
-git push -u origin main
+npm run deploy        # = firebase deploy --only hosting
 ```
 
-Puis dans le dépôt GitHub : **Settings → Pages → Source : Deploy from a branch**, branche `main`, dossier `/ (root)`.
-L'appli est servie à `https://<ton-compte>.github.io/mots-croises-pwa/`. Tous les chemins sont relatifs, le sous-dossier ne pose pas de problème.
+L'appli est servie à `https://<id-du-projet>.web.app`. `firebase.json` exclut `tools/`, le README et les fichiers npm, empêche la mise en cache navigateur de `sw.js` et `index.html`, et met en cache longue durée le moteur OCR.
 
-Netlify ou Cloudflare Pages marchent aussi : on publie le dossier tel quel, sans étape de build.
+Pour garder le code sur GitHub : crée le dépôt `mots-croises-pwa`, puis `git remote add origin …` et `git push -u origin main`.
 
 ## Installer sur Android
 
@@ -40,6 +51,7 @@ Le partage direct ne fonctionne qu'avec l'appli installée depuis Chrome. Sur iP
 
 ```bash
 npm start                                   # http://localhost:8080 (le service worker marche sur localhost)
+firebase serve --only hosting               # même chose, servi comme en production
 npm install
 npm run test:capture -- chemin/capture.jpg  # reconnaissance seule, affiche le JSON et les incohérences
 ```

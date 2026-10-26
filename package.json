@@ -5,7 +5,8 @@
   "description": "PWA qui transforme une capture de mots croisés en grille jouable",
   "scripts": {
     "start": "python3 -m http.server 8080",
-    "test:capture": "node tools/test-recognize.js"
+    "test:capture": "node tools/test-recognize.js",
+    "deploy": "firebase deploy --only hosting"
   },
   "devDependencies": {
     "jpeg-js": "0.4.4",
