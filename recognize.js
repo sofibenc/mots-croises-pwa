@@ -22,36 +22,45 @@
     return out;
   }
 
-  // Regroupe les positions voisines en traits et garde ceux aussi longs que le cadre de la grille
-  function findLines(runs) {
-    let max = 0; for (const r of runs) if (r > max) max = r;
-    const lines = []; let start = -1;
+  // Regroupe les positions voisines en traits ; chaque trait garde sa longueur
+  function findLines(runs, minRun) {
+    const lines = []; let start = -1, best = 0;
     for (let a = 0; a <= runs.length; a++) {
-      const on = a < runs.length && runs[a] >= max * 0.8;
-      if (on && start < 0) start = a;
-      if (!on && start >= 0) { lines.push((start + a - 1) / 2); start = -1; }
+      const on = a < runs.length && runs[a] >= minRun;
+      if (on) { if (start < 0) { start = a; best = 0; } if (runs[a] > best) best = runs[a]; }
+      if (!on && start >= 0) { lines.push({ pos: (start + a - 1) / 2, run: best }); start = -1; }
     }
     return lines;
   }
 
-  // Ne garde que la plus longue suite de traits régulièrement espacés
+  // Plus longue suite de traits régulièrement espacés et de même longueur (le quadrillage).
+  // Un trait parasite (bord d'une autre grille, filet de mise en page) n'a ni l'écart ni la longueur.
   function regular(lines) {
-    if (lines.length < 3) return lines;
-    let best = [lines[0]];
+    let best = [];
     for (let s = 0; s < lines.length - 1; s++) {
-      const step = lines[s + 1] - lines[s]; const seq = [lines[s], lines[s + 1]];
-      for (let k = s + 2; k < lines.length; k++) {
-        const d = lines[k] - seq[seq.length - 1];
-        if (Math.abs(d - step) <= Math.max(3, step * 0.12)) seq.push(lines[k]); else if (d > step * 1.2) break;
+      for (let t = s + 1; t < lines.length; t++) {
+        const step = lines[t].pos - lines[s].pos, ref = lines[s].run;
+        if (step < 8) continue;
+        const same = l => Math.abs(l.run - ref) <= ref * 0.2;
+        if (!same(lines[t])) continue;
+        const seq = [lines[s], lines[t]];
+        for (let k = t + 1; k < lines.length; k++) {
+          const d = lines[k].pos - seq[seq.length - 1].pos;
+          if (Math.abs(d - step) <= Math.max(3, step * 0.12) && same(lines[k])) seq.push(lines[k]);
+          else if (d > step * 1.2) break;
+        }
+        const better = seq.length > best.length ||
+          (seq.length === best.length && seq.length && seq[0].run > best[0].run);
+        if (better) best = seq;
       }
-      if (seq.length > best.length) best = seq;
     }
-    return best;
+    return best.map(l => l.pos);
   }
 
   function detectGrid(img) {
-    const xs = regular(findLines(longestRuns(img, "x")));
-    const ys = regular(findLines(longestRuns(img, "y")));
+    const minRun = Math.max(40, Math.round(Math.min(img.width, img.height) * 0.15));
+    const xs = regular(findLines(longestRuns(img, "x"), minRun));
+    const ys = regular(findLines(longestRuns(img, "y"), minRun));
     if (xs.length < 4 || ys.length < 4) throw new Error("Grille introuvable : aucun quadrillage régulier détecté.");
     const rows = ys.length - 1, cols = xs.length - 1;
     const layout = [];
@@ -84,13 +93,26 @@
       if (!empty && s >= 0) { if (x - s > bestL) { bestL = x - s; bestS = s; } s = -1; }
     }
     const split = bestS >= 0 ? Math.round(bestS + bestL / 2) : Math.round(W / 2);
-    return { top, left: { x: 0, y: top, w: split, h: H - top }, right: { x: split, y: top, w: W - split, h: H - top } };
+    const end = barrier(img, split + 1, top, H, 0.4);
+    return { top, left: { x: 0, y: top, w: split, h: H - top }, right: { x: split, y: top, w: end - split, h: H - top } };
   }
 
   // Bandeau vertical à droite de la grille (numéro de la grille)
   function sideStrip(img, grid) {
-    const x = Math.round(grid.box.x1 + 3), y = Math.round(grid.box.y0);
-    return { x, y, w: img.width - x, h: Math.round(grid.box.y1 - grid.box.y0) };
+    const x = Math.round(grid.box.x1 + 3), y = Math.round(grid.box.y0), y1 = Math.round(grid.box.y1);
+    const end = barrier(img, x + 2, y, y1, 0.6);
+    return { x, y, w: end - x, h: y1 - y };
+  }
+
+  // Premier trait vertical d'encre à partir de x0 couvrant au moins `share` de la hauteur [y0, y1)
+  function barrier(img, x0, y0, y1, share) {
+    const need = (y1 - y0) * share;
+    for (let x = x0; x < img.width; x++) {
+      let best = 0, cur = 0;
+      for (let y = y0; y < y1; y++) { if (isInk(img, x, y)) { if (++cur > best) best = cur; } else cur = 0; }
+      if (best >= need) return Math.max(x0 + 1, x - 2);
+    }
+    return img.width;
   }
 
   // ---- Lecture du texte OCR ----
