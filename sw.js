@@ -1,6 +1,6 @@
 // Service worker : appli disponible hors ligne + réception des captures partagées.
 // Change VERSION à chaque déploiement pour que les téléphones récupèrent la nouvelle version.
-const VERSION = "mc-v5";
+const VERSION = "mc-v6";
 const SHARE_CACHE = "mc-share";
 const FILES = [
   "./",

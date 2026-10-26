@@ -73,9 +73,12 @@ p{margin:0;line-height:1.45}
 .meter i{display:block;height:100%;background:var(--accent);border-radius:3px}
 .meter.done i{background:var(--ok)}
 .pct{font-weight:600;color:var(--ink)}
-.import{position:relative;display:flex;flex-direction:column;gap:8px;border:2px dashed var(--thin);border-radius:12px;padding:16px;align-items:stretch}
-.import input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:1;font-size:0}
-.import:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+.import{display:flex;flex-direction:column;gap:10px;border:2px dashed var(--thin);border-radius:12px;padding:16px}
+.pick{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pick-btn{position:relative}
+.pick-btn input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:1;font-size:0}
+.pick-btn:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+.primary.alt{background:transparent;color:var(--accent);box-shadow:inset 0 0 0 1.5px var(--accent)}
 
 /* Import */
 .steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
@@ -145,11 +148,13 @@ p{margin:0;line-height:1.45}
 <!-- Accueil -->
 <section class="screen scroll" id="home">
   <header><div class="title"><h1>Carnet de grilles</h1><span class="sub">Mots croisés importés depuis une capture</span></div></header>
-  <label class="import" for="file">
-    <input type="file" id="file" accept="image/*">
-    <span class="primary">Importer une capture</span>
-    <span class="sub">Recadrée sur la grille et ses définitions, comme dans le journal. L'analyse se fait sur ton téléphone. Tu peux aussi coller une image copiée.</span>
-  </label>
+  <div class="import">
+    <div class="pick">
+      <label class="primary pick-btn" for="file"><input type="file" id="file" accept="image/*">Importer une capture</label>
+      <label class="primary alt pick-btn" for="cam"><input type="file" id="cam" accept="image/*" capture="environment">Prendre une photo</label>
+    </div>
+    <span class="sub">Cadre la grille et ses définitions, bien à plat et bien éclairées. L'analyse se fait sur ton téléphone. Tu peux aussi coller une image copiée.</span>
+  </div>
   <div class="theme"><span>Thème</span>
     <div class="seg" role="group" aria-label="Thème">
       <button type="button" data-theme-set="auto">Auto</button><button type="button" data-theme-set="light">Clair</button><button type="button" data-theme-set="dark">Sombre</button>
@@ -393,7 +398,7 @@ async function runImport(file) {
     : null);
 }
 
-$("file").addEventListener("change", e => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) runImport(f); });
+["file", "cam"].forEach(id => $(id).addEventListener("change", e => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) runImport(f); }));
 // Solution de secours : coller une image depuis le presse-papiers
 document.addEventListener("paste", e => {
   if ($("home").hidden) return;
