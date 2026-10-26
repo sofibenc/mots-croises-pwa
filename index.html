@@ -60,6 +60,11 @@ p{margin:0;line-height:1.45}
 .item{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px;background:var(--surface);border-radius:10px;padding:10px 12px}
 .item button.open{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:2px;min-width:0}
 .item strong{font-family:var(--f-display);font-size:1.15rem;font-weight:700;letter-spacing:.02em}
+.theme{display:flex;align-items:center;gap:10px;font-size:.85rem;color:var(--muted)}
+.seg{display:inline-flex;border:1.5px solid var(--thin);border-radius:9px;overflow:hidden}
+.seg button{font:600 .85rem var(--f-body);color:var(--ink);background:transparent;border:0;padding:6px 12px;cursor:pointer}
+.seg button + button{border-left:1.5px solid var(--thin)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--surface)}
 .import{position:relative;display:flex;flex-direction:column;gap:8px;border:2px dashed var(--thin);border-radius:12px;padding:16px;align-items:stretch}
 .import input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:1;font-size:0}
 .import:focus-within{outline:2px solid var(--accent);outline-offset:2px}
@@ -137,6 +142,11 @@ p{margin:0;line-height:1.45}
     <span class="primary">Importer une capture</span>
     <span class="sub">Recadrée sur la grille et ses définitions, comme dans le journal. L'analyse se fait sur ton téléphone. Tu peux aussi coller une image copiée.</span>
   </label>
+  <div class="theme"><span>Thème</span>
+    <div class="seg" role="group" aria-label="Thème">
+      <button type="button" data-theme-set="auto">Auto</button><button type="button" data-theme-set="light">Clair</button><button type="button" data-theme-set="dark">Sombre</button>
+    </div>
+  </div>
   <h2>Mes grilles</h2>
   <div class="list" id="list"></div>
 </section>
@@ -172,6 +182,7 @@ p{margin:0;line-height:1.45}
   <header>
     <button class="tool" id="playBack" type="button" aria-label="Retour aux grilles">‹</button>
     <div class="title"><h1 id="playTitle"></h1><span class="sub" id="prog"></span></div>
+    <button class="tool" id="btnTheme" type="button" aria-label="Changer de thème">◐</button>
     <button class="tool" id="btnList" type="button">Définitions</button>
     <button class="tool" id="btnClear" type="button">Effacer</button>
   </header>
@@ -235,6 +246,20 @@ function savePuzzle(p) {
 function deletePuzzle(id) {
   store.set("mc:index", index().filter(x => x !== id)); store.del("mc:p:" + id); store.del("mc:l:" + id);
 }
+
+// ---- Thème : auto (celui du téléphone), clair ou sombre ----
+function applyTheme(t) {
+  if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
+  else { t = "auto"; document.documentElement.removeAttribute("data-theme"); }
+  store.set("mc:theme", t);
+  document.querySelectorAll("[data-theme-set]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.themeSet === t)));
+}
+function effectiveTheme() {
+  const t = document.documentElement.getAttribute("data-theme");
+  return t || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+}
+document.querySelectorAll("[data-theme-set]").forEach(b => b.addEventListener("click", () => applyTheme(b.dataset.themeSet)));
+applyTheme(store.get("mc:theme", "auto"));
 
 // ---- Écrans ----
 const screens = ["home", "import", "fix", "play"];
@@ -583,6 +608,7 @@ function fillList(d, olId) {
 }
 $("btnList").addEventListener("click", () => { fillList("H", "listH"); fillList("V", "listV"); $("sheet").hidden = false; $("sheet").scrollTop = 0; });
 $("btnClose").addEventListener("click", () => $("sheet").hidden = true);
+$("btnTheme").addEventListener("click", () => applyTheme(effectiveTheme() === "dark" ? "light" : "dark"));
 $("btnEdit").addEventListener("click", () => openFix(P, null, "play"));
 armed($("btnClear"), "Effacer", "Confirmer", () => { letters = Array(N).fill(""); save(); render(); toast("Grille effacée"); });
 
