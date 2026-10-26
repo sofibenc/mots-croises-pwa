@@ -1,0 +1,15 @@
+{
+  "name": "carnet-de-grilles",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PWA qui transforme une capture de mots croisés en grille jouable",
+  "scripts": {
+    "start": "python3 -m http.server 8080",
+    "test:capture": "node tools/test-recognize.js"
+  },
+  "devDependencies": {
+    "jpeg-js": "0.4.4",
+    "pngjs": "7.0.0",
+    "tesseract.js": "5.1.1"
+  }
+}
