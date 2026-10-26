@@ -58,7 +58,11 @@ p{margin:0;line-height:1.45}
 /* Accueil */
 .list{display:flex;flex-direction:column;gap:8px}
 .item{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px;background:var(--surface);border-radius:10px;padding:10px 12px}
-.item button.open{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:2px;min-width:0}
+.item button.open{all:unset;cursor:pointer;display:grid;grid-template-columns:1fr auto;align-items:center;gap:14px;min-width:0}
+.item .info{display:flex;flex-direction:column;gap:2px;min-width:0}
+.item .big{font-family:var(--f-display);font-weight:700;font-size:2.1rem;line-height:1;color:var(--accent);font-variant-numeric:tabular-nums;white-space:nowrap}
+.item .big small{font-size:.5em;margin-left:2px}
+.item .big.done{color:var(--ok)}
 .item strong{font-family:var(--f-display);font-size:1.15rem;font-weight:700;letter-spacing:.02em}
 .theme{display:flex;align-items:center;gap:10px;font-size:.85rem;color:var(--muted)}
 .seg{display:inline-flex;border:1.5px solid var(--thin);border-radius:9px;overflow:hidden}
@@ -294,8 +298,9 @@ function renderHome() {
     const item = document.createElement("div"); item.className = "item";
     const open = document.createElement("button"); open.type = "button"; open.className = "open";
     const pct = total ? Math.floor(filled / total * 100) : 0, done = total && filled === total;
-    open.innerHTML = `<strong></strong><span class="sub"><span class="pct">${done ? "Terminée" : pct + " %"}</span> · ${filled} / ${total} cases · ${p.rows}×${p.cols}</span>` +
-      `<span class="meter${done ? " done" : ""}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="width:${done ? 100 : pct}%"></i></span>`;
+    open.innerHTML = `<span class="info"><strong></strong><span class="sub">${done ? '<span class="pct">Terminée</span> · ' : ""}${filled} / ${total} cases · ${p.rows}×${p.cols}</span>` +
+      `<span class="meter${done ? " done" : ""}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="width:${done ? 100 : pct}%"></i></span></span>` +
+      `<span class="big${done ? " done" : ""}">${done ? 100 : pct}<small>%</small></span>`;
     open.querySelector("strong").textContent = p.title;
     open.addEventListener("click", () => startGame(p));
     const del = document.createElement("button"); del.type = "button"; del.className = "tool"; del.textContent = "Supprimer";
