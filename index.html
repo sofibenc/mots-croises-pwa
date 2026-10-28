@@ -73,6 +73,13 @@ p{margin:0;line-height:1.45}
 .meter i{display:block;height:100%;background:var(--accent);border-radius:3px}
 .meter.done i{background:var(--ok)}
 .pct{font-weight:600;color:var(--ink)}
+.acts{display:flex;flex-direction:column;gap:6px}
+.backup{display:flex;gap:8px;flex-wrap:wrap}
+.xbtns{display:flex;flex-direction:column;gap:8px}
+.mono{font:.8rem/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--ink);background:var(--surface);border:1.5px solid var(--thin);border-radius:8px;padding:8px;width:100%;box-sizing:border-box;resize:vertical}
+.filebtn{position:relative;display:block}
+.filebtn input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:1;font-size:0}
+.filebtn:focus-within{outline:2px solid var(--accent);outline-offset:2px}
 .import{display:flex;flex-direction:column;gap:10px;border:2px dashed var(--thin);border-radius:12px;padding:16px}
 .pick{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .pick-btn{position:relative}
@@ -162,6 +169,10 @@ p{margin:0;line-height:1.45}
   </div>
   <h2>Mes grilles</h2>
   <div class="list" id="list"></div>
+  <div class="backup">
+    <button class="tool" id="btnExportAll" type="button">Exporter toutes les grilles</button>
+    <button class="tool" id="btnImportGrids" type="button">Importer des grilles</button>
+  </div>
 </section>
 
 <!-- Import -->
@@ -213,6 +224,30 @@ p{margin:0;line-height:1.45}
       <button class="tool" id="btnEdit" type="button">Corriger</button><button class="tool" id="btnClose" type="button">Fermer</button></header>
     <section><h2>Horizontalement</h2><ol id="listH"></ol></section>
     <section><h2>Verticalement</h2><ol id="listV"></ol></section>
+  </div>
+</div>
+<div class="sheet" id="xsheet" hidden>
+  <div class="sheet-in">
+    <header><div class="title"><strong id="xTitle"></strong><span class="sub" id="xSub"></span></div>
+      <button class="tool" id="xClose" type="button">Fermer</button></header>
+    <div class="xbtns">
+      <button class="primary" id="xShare" type="button">Envoyer…</button>
+      <button class="primary alt" id="xDownload" type="button">Enregistrer le fichier</button>
+      <button class="primary alt" id="xCopy" type="button">Copier le texte</button>
+    </div>
+    <p class="sub" id="xHint"></p>
+    <textarea class="mono" id="xText" rows="5" readonly aria-label="Contenu exporté"></textarea>
+  </div>
+</div>
+<div class="sheet" id="isheet" hidden>
+  <div class="sheet-in">
+    <header><div class="title"><strong>Importer des grilles</strong><span class="sub">Fichier ou texte exporté depuis Carnet de grilles</span></div>
+      <button class="tool" id="iClose" type="button">Fermer</button></header>
+    <label class="primary filebtn" for="iFile"><input type="file" id="iFile" accept=".json,.txt,application/json,text/plain">Choisir un fichier</label>
+    <label class="field" for="iText">Ou colle le texte exporté
+      <textarea class="mono" id="iText" rows="6" placeholder='{"format":"carnet-de-grilles", …}'></textarea></label>
+    <button class="primary alt" id="iGo" type="button">Importer le texte</button>
+    <p class="sub">Si tu as déjà une grille, l'appli garde la version la plus avancée.</p>
   </div>
 </div>
 <div class="toast" id="toast" hidden></div>
@@ -276,7 +311,7 @@ applyTheme(store.get("mc:theme", "auto"));
 
 // ---- Écrans ----
 const screens = ["home", "import", "fix", "play"];
-function show(id) { screens.forEach(s => $(s).hidden = s !== id); $("sheet").hidden = true; window.scrollTo(0, 0); }
+function show(id) { screens.forEach(s => $(s).hidden = s !== id); document.querySelectorAll(".sheet").forEach(s => s.hidden = true); window.scrollTo(0, 0); }
 
 const toastEl = $("toast"); let tt;
 function toast(msg) { toastEl.textContent = msg; toastEl.hidden = false; clearTimeout(tt); tt = setTimeout(() => toastEl.hidden = true, 2400); }
@@ -308,11 +343,15 @@ function renderHome() {
       `<span class="big${done ? " done" : ""}">${done ? 100 : pct}<small>%</small></span>`;
     open.querySelector("strong").textContent = p.title;
     open.addEventListener("click", () => startGame(p));
+    const acts = document.createElement("div"); acts.className = "acts";
+    const send = document.createElement("button"); send.type = "button"; send.className = "tool"; send.textContent = "Envoyer";
+    send.addEventListener("click", () => openExport([id], true));
     const del = document.createElement("button"); del.type = "button"; del.className = "tool"; del.textContent = "Supprimer";
     armed(del, "Supprimer", "Confirmer", () => { deletePuzzle(id); renderHome(); toast("Grille supprimée"); });
-    item.append(open, del); list.appendChild(item);
+    acts.append(send, del); item.append(open, acts); list.appendChild(item);
   });
   if (!list.children.length) list.innerHTML = '<p class="sub">Aucune grille pour l\'instant. Importe une capture pour commencer.</p>';
+  $("btnExportAll").hidden = !list.querySelector(".item");
 }
 
 // ---- Import et reconnaissance ----
@@ -401,9 +440,174 @@ async function runImport(file) {
 ["file", "cam"].forEach(id => $(id).addEventListener("change", e => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) runImport(f); }));
 // Solution de secours : coller une image depuis le presse-papiers
 document.addEventListener("paste", e => {
-  if ($("home").hidden) return;
-  const item = [...(e.clipboardData ? e.clipboardData.items : [])].find(i => i.type.startsWith("image/"));
-  if (item) { e.preventDefault(); runImport(item.getAsFile()); }
+  if ($("home").hidden || /^(TEXTAREA|INPUT)$/.test(e.target.tagName)) return;
+  const items = [...(e.clipboardData ? e.clipboardData.items : [])];
+  const img = items.find(i => i.type.startsWith("image/"));
+  if (img) { e.preventDefault(); runImport(img.getAsFile()); return; }
+  const text = e.clipboardData ? e.clipboardData.getData("text/plain").trim() : "";
+  if (/^[\[{]/.test(text)) { e.preventDefault(); doImport(text); }
+});
+
+// ---- Export / import de grilles ----
+const FORMAT = "carnet-de-grilles";
+let embedded = false;
+try { embedded = window.self !== window.top; } catch (e) { embedded = true; }
+
+const isBlockIn = (p, i) => p.layout[Math.floor(i / p.cols)][i % p.cols] === "#";
+function filledCount(p, letters) {
+  if (!Array.isArray(letters)) return 0;
+  let n = 0; for (let i = 0; i < p.rows * p.cols; i++) if (letters[i] && !isBlockIn(p, i)) n++;
+  return n;
+}
+function slug(s) {
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "grille";
+}
+
+// Une grille envoyée part vierge ; la sauvegarde complète garde la progression
+function buildExport(ids, withLetters) {
+  const grids = ids.map(id => {
+    const puzzle = store.get("mc:p:" + id, null); if (!puzzle) return null;
+    const g = { puzzle };
+    if (withLetters) { const l = store.get("mc:l:" + id, null); if (Array.isArray(l) && l.some(Boolean)) g.letters = l; }
+    return g;
+  }).filter(Boolean);
+  return { format: FORMAT, version: 1, exportedAt: new Date().toISOString(), grids };
+}
+
+let xData = null;
+function openExport(ids, single) {
+  const data = buildExport(ids, !single);
+  if (!data.grids.length) { toast("Aucune grille à exporter"); return; }
+  const first = data.grids[0].puzzle, n = data.grids.length;
+  xData = {
+    text: JSON.stringify(data),
+    name: single ? slug(first.title) : "carnet-de-grilles-" + localDate(),
+    title: single ? first.title : "Carnet de grilles"
+  };
+  $("xTitle").textContent = single ? `Envoyer « ${first.title} »` : "Exporter toutes les grilles";
+  $("xSub").textContent = single ? "Grille vierge, sans tes lettres" : `${n} grille${n > 1 ? "s" : ""}, avec ta progression`;
+  $("xText").value = xData.text;
+  $("xShare").hidden = embedded || !pickShareFile();
+  $("xDownload").hidden = embedded;
+  // Le premier bouton disponible est mis en avant
+  let lead = false;
+  ["xShare", "xDownload", "xCopy"].forEach(id => { const b = $(id); b.classList.toggle("alt", lead || b.hidden ? true : (lead = true, false)); });
+  $("xHint").textContent = embedded
+    ? "Ici, l'envoi de fichier n'est pas disponible. Copie le texte, colle-le dans un message ou une note, puis sur l'autre appareil : Importer des grilles → colle le texte."
+    : "Sur l'autre appareil : Importer des grilles → Choisir un fichier. Sur Android, tu peux aussi faire Partager → Carnet de grilles depuis le fichier reçu.";
+  $("xsheet").hidden = false; $("xsheet").scrollTop = 0;
+}
+function localDate() {
+  const d = new Date(), z = n => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
+}
+function makeFile(type, ext) { return new File([xData.text], `${xData.name}.${ext}`, { type }); }
+// Chrome Android refuse parfois le partage de JSON : on essaie ensuite en texte brut
+function pickShareFile() {
+  if (!navigator.canShare) return null;
+  for (const [type, ext] of [["application/json", "json"], ["text/plain", "txt"]]) {
+    const f = makeFile(type, ext);
+    try { if (navigator.canShare({ files: [f] })) return f; } catch (e) {}
+  }
+  return null;
+}
+$("xShare").addEventListener("click", async () => {
+  const f = pickShareFile(); if (!f) return;
+  try { await navigator.share({ files: [f], title: xData.title }); }
+  catch (e) { if (e.name !== "AbortError") toast("Envoi impossible : utilise « Copier le texte »"); }
+});
+$("xDownload").addEventListener("click", () => {
+  const url = URL.createObjectURL(makeFile("application/json", "json"));
+  const a = document.createElement("a"); a.href = url; a.download = xData.name + ".json";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  toast("Fichier téléchargé");
+});
+$("xCopy").addEventListener("click", () => {
+  const ta = $("xText");
+  const fallback = () => { ta.focus(); ta.select(); toast("Texte sélectionné : copie-le"); };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(xData.text).then(() => toast("Texte copié"), fallback);
+  else fallback();
+});
+$("xClose").addEventListener("click", () => $("xsheet").hidden = true);
+$("btnExportAll").addEventListener("click", () => openExport(index(), false));
+
+function validPuzzle(p) {
+  if (!p || typeof p !== "object") return false;
+  const okInt = n => Number.isInteger(n) && n >= 2 && n <= 30;
+  if (!okInt(p.rows) || !okInt(p.cols)) return false;
+  if (!Array.isArray(p.layout) || p.layout.length !== p.rows ||
+      !p.layout.every(r => typeof r === "string" && r.length === p.cols && /^[.#]+$/.test(r))) return false;
+  const defs = (a, n) => Array.isArray(a) && a.length === n && a.every(l => Array.isArray(l) && l.every(d => typeof d === "string"));
+  return defs(p.across, p.rows) && defs(p.down, p.cols);
+}
+function normalizePuzzle(p) {
+  const labels = (a, n, make) => Array.isArray(a) && a.length === n ? a.map(x => String(x).slice(0, 4)) : Array.from({ length: n }, (_, i) => make(i));
+  return {
+    id: typeof p.id === "string" && p.id.trim() ? p.id.trim().slice(0, 80) : "grille-" + Date.now().toString(36),
+    title: typeof p.title === "string" && p.title.trim() ? p.title.trim().slice(0, 80) : "Grille importée",
+    rows: p.rows, cols: p.cols,
+    rowLabels: labels(p.rowLabels, p.rows, i => String(i + 1)),
+    colLabels: labels(p.colLabels, p.cols, i => String.fromCharCode(65 + i)),
+    layout: p.layout.slice(),
+    across: p.across.map(l => l.map(d => d.slice(0, 300))),
+    down: p.down.map(l => l.map(d => d.slice(0, 300)))
+  };
+}
+function cleanLetters(l, n) {
+  if (!Array.isArray(l) || l.length !== n) return null;
+  return l.map(x => typeof x === "string" && /^[A-Z]$/.test(x) ? x : "");
+}
+
+function importData(text) {
+  let data;
+  try { data = JSON.parse(text); } catch (e) { return { error: "Ce n'est pas un export de Carnet de grilles." }; }
+  let items = Array.isArray(data) ? data : data && Array.isArray(data.grids) ? data.grids : [data];
+  items = items.map(it => it && it.puzzle ? it : { puzzle: it });
+  const r = { added: 0, updated: 0, kept: 0, invalid: 0 };
+  index();
+  items.forEach(it => {
+    if (!validPuzzle(it.puzzle)) { r.invalid++; return; }
+    const p = normalizePuzzle(it.puzzle);
+    const letters = cleanLetters(it.letters, p.rows * p.cols);
+    const same = store.get("mc:p:" + p.id, null);
+    // Même identifiant mais grille différente : on l'ajoute à part
+    if (same && same.layout.join() !== p.layout.join()) p.id += "-" + Math.random().toString(36).slice(2, 7);
+    const existing = store.get("mc:p:" + p.id, null);
+    if (!existing) {
+      savePuzzle(p); if (letters) store.set("mc:l:" + p.id, letters); r.added++; return;
+    }
+    if (filledCount(p, letters) > filledCount(existing, store.get("mc:l:" + p.id, null))) {
+      savePuzzle(p); store.set("mc:l:" + p.id, letters); r.updated++;
+    } else r.kept++;
+  });
+  return r;
+}
+function importReport(r) {
+  if (r.error) return r.error;
+  const s = (n, one, many) => `${n} ${n > 1 ? many : one}`;
+  const parts = [];
+  if (r.added) parts.push(s(r.added, "ajoutée", "ajoutées"));
+  if (r.updated) parts.push(s(r.updated, "mise à jour", "mises à jour"));
+  if (r.kept) parts.push(s(r.kept, "déjà plus avancée ici", "déjà plus avancées ici"));
+  if (r.invalid) parts.push(s(r.invalid, "illisible", "illisibles"));
+  return parts.length ? "Grilles : " + parts.join(", ") + "." : "Aucune grille dans ce fichier.";
+}
+function doImport(text) {
+  const r = importData(text);
+  renderHome(); show("home"); toast(importReport(r));
+  return r;
+}
+$("btnImportGrids").addEventListener("click", () => { $("iText").value = ""; $("isheet").hidden = false; $("isheet").scrollTop = 0; });
+$("iClose").addEventListener("click", () => $("isheet").hidden = true);
+$("iFile").addEventListener("change", async e => {
+  const f = e.target.files && e.target.files[0]; e.target.value = "";
+  if (f) doImport(await f.text());
+});
+$("iGo").addEventListener("click", () => {
+  const t = $("iText").value.trim();
+  if (!t) { toast("Colle d'abord le texte exporté"); return; }
+  doImport(t);
 });
 $("impBack").addEventListener("click", () => { renderHome(); show("home"); });
 
@@ -637,7 +841,9 @@ async function takeShared() {
     const res = await cache.match("shared-image");
     if (!res) return false;
     await cache.delete("shared-image");
-    runImport(await res.blob());
+    const blob = await res.blob();
+    // Une image lance l'analyse, un fichier exporté s'importe directement
+    if (blob.type.startsWith("image/")) runImport(blob); else doImport(await blob.text());
     return true;
   } catch (e) { return false; }
 }
