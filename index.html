@@ -452,6 +452,9 @@ document.addEventListener("paste", e => {
 const FORMAT = "carnet-de-grilles";
 let embedded = false;
 try { embedded = window.self !== window.top; } catch (e) { embedded = true; }
+// Dans la visionneuse claude.ai, l'enregistrement passe par sa capacité « downloads »
+let saver = null;
+if (window.claude && typeof window.claude.use === "function") window.claude.use("downloads").then(d => { saver = d; }, () => {});
 
 const isBlockIn = (p, i) => p.layout[Math.floor(i / p.cols)][i % p.cols] === "#";
 function filledCount(p, letters) {
@@ -488,11 +491,13 @@ function openExport(ids, single) {
   $("xSub").textContent = single ? "Grille vierge, sans tes lettres" : `${n} grille${n > 1 ? "s" : ""}, avec ta progression`;
   $("xText").value = xData.text;
   $("xShare").hidden = embedded || !pickShareFile();
-  $("xDownload").hidden = embedded;
+  $("xDownload").hidden = embedded && !saver;
   // Le premier bouton disponible est mis en avant
   let lead = false;
   ["xShare", "xDownload", "xCopy"].forEach(id => { const b = $(id); b.classList.toggle("alt", lead || b.hidden ? true : (lead = true, false)); });
-  $("xHint").textContent = embedded
+  $("xHint").textContent = embedded && saver
+    ? "Sur l'autre appareil : Importer des grilles → Choisir un fichier, ou colle le texte copié."
+    : embedded
     ? "Ici, l'envoi de fichier n'est pas disponible. Copie le texte, colle-le dans un message ou une note, puis sur l'autre appareil : Importer des grilles → colle le texte."
     : "Sur l'autre appareil : Importer des grilles → Choisir un fichier. Sur Android, tu peux aussi faire Partager → Carnet de grilles depuis le fichier reçu.";
   $("xsheet").hidden = false; $("xsheet").scrollTop = 0;
@@ -517,6 +522,18 @@ $("xShare").addEventListener("click", async () => {
   catch (e) { if (e.name !== "AbortError") toast("Envoi impossible : utilise « Copier le texte »"); }
 });
 $("xDownload").addEventListener("click", () => {
+  if (saver) {
+    saver.save({ filename: xData.name + ".json", data: xData.text }).then(
+      r => toast(r.status === "saved" ? "Fichier enregistré" : "Fichier envoyé"),
+      e => {
+        const code = e && e.code;
+        if (code === "declined") return;
+        if (code === "rate_limited") { toast("Patiente un instant puis réessaie"); return; }
+        saver = null; $("xDownload").hidden = true;
+        toast("Enregistrement indisponible ici : utilise « Copier le texte »");
+      });
+    return;
+  }
   const url = URL.createObjectURL(makeFile("application/json", "json"));
   const a = document.createElement("a"); a.href = url; a.download = xData.name + ".json";
   document.body.appendChild(a); a.click(); a.remove();
