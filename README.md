@@ -14,6 +14,7 @@ Tout tourne sur le téléphone, hors ligne une fois l'appli installée. Aucune d
 | `manifest.webmanifest` | Installation et cible « Partager vers… » |
 | `vendor/`, `core/`, `lang/` | Moteur OCR Tesseract.js 5.1.1 et modèle français (LSTM, `best_int`) |
 | `tools/test-recognize.js` | Test de la reconnaissance sous Node, sur une capture |
+| `tools/icon.html`, `tools/make-icons.sh` | Source de l'icône et génération de `icons/*.png` |
 
 ## Déployer sur Firebase Hosting
 

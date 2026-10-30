@@ -1,0 +1,38 @@
+<!doctype html>
+<!-- Source des icônes. ?v=any (coins arrondis), ?v=maskable (Android) ou ?v=apple (iPhone). Rendu : tools/make-icons.sh -->
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&display=swap">
+<style>html,body{margin:0;background:transparent}svg{display:block;width:100vw;height:100vw}text{font:700 170px "Barlow Condensed";text-anchor:middle}</style>
+<svg id="s" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0d92cc"/><stop offset="1" stop-color="#086a98"/></linearGradient>
+  </defs>
+</svg>
+<script>
+// Une vraie grille : MOT / I#A / SON (MOT, SON, MIS, TAN)
+const LAYOUT = ["MOT", "I#A", "SON"];
+const v = new URLSearchParams(location.search).get("v") || "any";
+// Android recadre l'icône : la grille doit tenir dans le cercle central de 80 %
+const side = { any: 660, maskable: 570, apple: 640 }[v];
+const svg = document.getElementById("s"), NS = svg.namespaceURI;
+const el = (name, attrs, text) => {
+  const e = document.createElementNS(NS, name);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (text) e.textContent = text;
+  svg.appendChild(e); return e;
+};
+el("rect", { width: 1024, height: 1024, rx: v === "any" ? 228 : 0, fill: "url(#bg)" });
+
+const gap = side * .022, frame = side * .03, x0 = (1024 - side) / 2, y0 = x0;
+const cell = (side - 2 * frame - 2 * gap) / 3, fs = cell * .86;
+el("rect", { x: x0, y: y0 + side * .018, width: side, height: side, rx: side * .07, fill: "#06496b", opacity: .45 });
+el("rect", { x: x0, y: y0, width: side, height: side, rx: side * .07, fill: "#14213a" });
+LAYOUT.forEach((row, r) => [...row].forEach((ch, c) => {
+  const x = x0 + frame + c * (cell + gap), y = y0 + frame + r * (cell + gap);
+  const fill = ch === "#" ? "#0aa3e0" : r === 0 ? (c === 0 ? "#ffc83a" : "#fff0b0") : "#ffffff";
+  // Les coins de la grille suivent ceux du cadre
+  const rx = (r === 0 || r === 2) && (c === 0 || c === 2) ? side * .045 : side * .012;
+  el("rect", { x, y, width: cell, height: cell, rx, fill });
+  if (ch !== "#") el("text", { x: x + cell / 2, y: y + cell / 2 + fs * .35, fill: "#14213a", style: `font-size:${fs}px` }, ch);
+}));
+</script>
