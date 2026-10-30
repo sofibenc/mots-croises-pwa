@@ -77,7 +77,7 @@ npm run test:capture -- chemin/capture.jpg  # reconnaissance seule, affiche le J
 ## Export et import
 
 - **Exporter toutes les grilles** (accueil) : un fichier `carnet-de-grilles-AAAA-MM-JJ.json` avec toutes les grilles et ta progression. Sert de sauvegarde ou pour changer de téléphone.
-- **Envoyer** (sur une grille) : un fichier avec cette grille seule, vierge, pour la faire jouer à quelqu'un.
+- **Envoyer** (sur une grille) : un fichier avec cette grille seule et ses lettres.
 - **Importer des grilles** : un fichier ou le texte collé. Une grille déjà présente garde la version la plus avancée ; une grille de même identifiant mais différente est ajoutée à part.
 - Sur Android, un fichier reçu (WhatsApp, mail…) s'ouvre aussi par Partager → Carnet de grilles.
 
@@ -88,7 +88,7 @@ Format :
   "grids": [ { "puzzle": { … }, "letters": ["A", "", …] } ] }
 ```
 
-`letters` est absent d'une grille envoyée. L'import accepte aussi une grille seule (l'objet `puzzle`).
+`letters` est absent d'une grille encore vide. L'import accepte aussi une grille seule (l'objet `puzzle`).
 
 ## Limites connues
 

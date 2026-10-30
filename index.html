@@ -466,12 +466,12 @@ function slug(s) {
   return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "grille";
 }
 
-// Une grille envoyée part vierge ; la sauvegarde complète garde la progression
-function buildExport(ids, withLetters) {
+// Chaque grille part avec ses lettres, qu'on en exporte une seule ou toutes
+function buildExport(ids) {
   const grids = ids.map(id => {
     const puzzle = store.get("mc:p:" + id, null); if (!puzzle) return null;
     const g = { puzzle };
-    if (withLetters) { const l = store.get("mc:l:" + id, null); if (Array.isArray(l) && l.some(Boolean)) g.letters = l; }
+    const l = store.get("mc:l:" + id, null); if (Array.isArray(l) && l.some(Boolean)) g.letters = l;
     return g;
   }).filter(Boolean);
   return { format: FORMAT, version: 1, exportedAt: new Date().toISOString(), grids };
@@ -479,7 +479,7 @@ function buildExport(ids, withLetters) {
 
 let xData = null;
 function openExport(ids, single) {
-  const data = buildExport(ids, !single);
+  const data = buildExport(ids);
   if (!data.grids.length) { toast("Aucune grille à exporter"); return; }
   const first = data.grids[0].puzzle, n = data.grids.length;
   xData = {
@@ -488,7 +488,7 @@ function openExport(ids, single) {
     title: single ? first.title : "Carnet de grilles"
   };
   $("xTitle").textContent = single ? `Envoyer « ${first.title} »` : "Exporter toutes les grilles";
-  $("xSub").textContent = single ? "Grille vierge, sans tes lettres" : `${n} grille${n > 1 ? "s" : ""}, avec ta progression`;
+  $("xSub").textContent = `${n} grille${n > 1 ? "s" : ""}, avec ta progression`;
   $("xText").value = xData.text;
   $("xShare").hidden = embedded || !pickShareFile();
   $("xDownload").hidden = embedded && !saver;
